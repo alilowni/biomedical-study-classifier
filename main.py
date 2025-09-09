@@ -15,52 +15,25 @@ from animal_classifier import *
 import config
 
 
-def main():
-    """Main pipeline execution - Full comprehensive analysis"""
-    pipeline(sample_size=None)
-
-def pipeline(sample_size: int = None):
-    """
-    pipeline processing all questions (1, 2, 3, 5) in a single row-by-row pass.
-    This is more efficient as we only do animal classification on original research papers.
-
-    Args:
-        sample_size: If provided, process only first N DOIs for testing
-    """
+def run_pipeline(dois_to_process, mode_name, log_suffix):
+    """Run the classification pipeline for given DOIs"""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     input_dir = Path(config.INPUT_DOI_FILE).parent
     input_filename = Path(config.INPUT_DOI_FILE).stem
 
-    # Create logs directory and save log there
+    # Create logs directory
     logs_dir = Path("logs")
     logs_dir.mkdir(exist_ok=True)
 
-    if sample_size:
-        log_file = logs_dir / f"{input_filename}_test_{timestamp}.log"
-        status_msg = f"Test Mode ({sample_size} DOIs)"
-    else:
-        log_file = logs_dir / f"{input_filename}_full_{timestamp}.log"
-        status_msg = "Full Processing"
-
+    log_file = logs_dir / f"{input_filename}_{log_suffix}_{timestamp}.log"
     setup_logging("INFO", str(log_file))
 
     try:
-        # Load DOIs
-        all_dois = read_doi_list(config.INPUT_DOI_FILE, config.DOI_COLUMN_NAME)
-        if sample_size:
-            dois = all_dois[:sample_size]
-        else:
-            dois = all_dois
-
-        # Process all DOIs row-by-row (Questions 1, 2, 3, 5)
-        included_results, excluded_results = process_all_dois_row_by_row(dois, config.EMAIL, status_msg)
+        # Process DOIs row-by-row (Questions 1, 2, 3, 5)
+        included_results, excluded_results = process_all_dois_row_by_row(dois_to_process, config.EMAIL, mode_name)
 
         # Save results
-        if sample_size:
-            combined_file = input_dir / f"{input_filename}_test_combined_{timestamp}.xlsx"
-        else:
-            combined_file = input_dir / f"{input_filename}_combined_{timestamp}.xlsx"
-
+        combined_file = input_dir / f"{input_filename}_{log_suffix}_combined_{timestamp}.xlsx"
         save_combined_results_excel(included_results, excluded_results, str(combined_file))
 
         # Final output on same line
@@ -76,15 +49,24 @@ def pipeline(sample_size: int = None):
         print(f"\r{error_msg}", flush=True)
         raise
 
-def test_sample():
-    """Test with a small sample of DOIs using pipeline"""
-    pipeline(sample_size=20)
+def test_mode():
+    """Test mode: Process exactly 20 DOIs"""
+    all_dois = read_doi_list(config.INPUT_DOI_FILE, config.DOI_COLUMN_NAME)
+    test_dois = all_dois[:20]  # Exactly 20 DOIs
+    print("Biomedical Research Classifier - Test Mode (20 DOIs)")
+    run_pipeline(test_dois, "Test Mode (20 DOIs)", "test")
+
+def full_mode():
+    """Full mode: Process ALL DOIs"""
+    all_dois = read_doi_list(config.INPUT_DOI_FILE, config.DOI_COLUMN_NAME)
+    print("Biomedical Research Classifier - Full Processing")
+    run_pipeline(all_dois, "Full Processing", "full")
 
 if __name__ == "__main__":
     # Choose what to run:
-    
-    # Option 1: Test with small sample first
-    test_sample()
-    
-    # Option 2: Run full processing
-    #main()
+
+    # Option 1: Test with exactly 20 DOIs
+    test_mode()
+
+    # Option 2: Run full processing (ALL DOIs)
+    # full_mode()
